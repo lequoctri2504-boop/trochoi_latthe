@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "944321393174",
+    "project_id": "ai-lat-chu",
+    "storage_bucket": "ai-lat-chu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944321393174:android:d681d9630480ac1c613b37",
+        "android_client_info": {
+          "package_name": "com.example.ck_lequoctri"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7A6kPJVilhr-WpwO6Esm6Rfl7EH6cid0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
