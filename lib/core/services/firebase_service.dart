@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/models/score_model.dart';
+import 'local_data_service.dart';
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -23,6 +24,10 @@ class FirebaseService {
       _firestore = FirebaseFirestore.instance;
       _isAvailable = true;
       developer.log("Firebase initialized successfully.");
+      
+      // Auto sync predefined topics
+      _syncPredefinedTopicsIfNeeded();
+      
       return true;
     } catch (e) {
       _isAvailable = false;
@@ -84,5 +89,58 @@ class FirebaseService {
         return ScoreModel.fromFirestore(doc.data());
       }).toList();
     });
+  }
+
+  // Fetch cards for a specific topic from Firestore (NoSQL online cards)
+  Future<List<Map<String, dynamic>>?> getTopicCardsFromFirestore(String topicTitle) async {
+    if (!_isAvailable) return null;
+    try {
+      final doc = await _firestore!.collection('topics').doc(topicTitle).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data['cards'] != null) {
+          final List<dynamic> rawCards = data['cards'];
+          return rawCards.map((card) => Map<String, dynamic>.from(card)).toList();
+        }
+      }
+    } catch (e) {
+      developer.log("Error fetching topic cards from Firestore: $e");
+    }
+    return null;
+  }
+
+  // Auto sync predefined topics with their mock cards from LocalDataService to Firestore topics collection
+  Future<void> _syncPredefinedTopicsIfNeeded() async {
+    try {
+      // Check if 'topics' collection has any document
+      final snapshot = await _firestore!.collection('topics').limit(1).get();
+      if (snapshot.docs.isEmpty) {
+        developer.log("Firestore 'topics' collection is empty. Starting synchronization...");
+        final localData = LocalDataService();
+        final topics = localData.getPredefinedTopics();
+        
+        final batch = _firestore!.batch();
+        for (var topic in topics) {
+          final title = topic['title'] as String;
+          final docRef = _firestore!.collection('topics').doc(title);
+          final cards = localData.getMockData(title);
+          
+          batch.set(docRef, {
+            'title': title,
+            'icon': topic['icon'],
+            'color': topic['color'],
+            'description': topic['description'],
+            'cards': cards,
+            'syncedAt': FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+        developer.log("Predefined topics synced to Firestore successfully.");
+      } else {
+        developer.log("Firestore 'topics' collection already has data. Skipping synchronization.");
+      }
+    } catch (e) {
+      developer.log("Error syncing predefined topics to Firestore: $e");
+    }
   }
 }
