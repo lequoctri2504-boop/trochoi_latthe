@@ -92,10 +92,12 @@ class FirebaseService {
   }
 
   // Fetch cards for a specific topic from Firestore (NoSQL online cards)
-  Future<List<Map<String, dynamic>>?> getTopicCardsFromFirestore(String topicTitle) async {
+  Future<List<Map<String, dynamic>>?> getTopicCardsFromFirestore(String topicId) async {
     if (!_isAvailable) return null;
     try {
-      final doc = await _firestore!.collection('topics').doc(topicTitle).get();
+      final doc = await _firestore!.collection('topics').doc(topicId).get().timeout(
+        const Duration(seconds: 2),
+      );
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
         if (data['cards'] != null) {
@@ -113,10 +115,13 @@ class FirebaseService {
   Future<List<Map<String, dynamic>>> getTopicsFromFirestore() async {
     if (!_isAvailable) return [];
     try {
-      final snapshot = await _firestore!.collection('topics').get();
+      final snapshot = await _firestore!.collection('topics').get().timeout(
+        const Duration(seconds: 2),
+      );
       return snapshot.docs.map((doc) {
         final data = doc.data();
         return {
+          'id': doc.id, // Document ID is the source of truth for loading cards
           'title': data['title'] ?? doc.id,
           'icon': data['icon'] ?? 'help_outline_rounded',
           'color': data['color'] ?? 'primary',

@@ -68,6 +68,7 @@ class GameProvider with ChangeNotifier {
   // Start the Flip Card Memory Game
   Future<void> startNewGame({
     required String topic,
+    String? topicId,
     required String apiKey,
     required String aiProvider,
     required bool isOffline,
@@ -85,18 +86,19 @@ class GameProvider with ChangeNotifier {
 
     try {
       List<Map<String, dynamic>> rawPairs;
+      final String dbTopicId = topicId ?? topic;
 
       if (isOffline) {
         developer.log("Offline mode (predefined topic): Loading from Firestore if available, otherwise local mock data.");
         List<Map<String, dynamic>>? firestoreCards;
         if (_firebaseService.isAvailable) {
-          firestoreCards = await _firebaseService.getTopicCardsFromFirestore(topic);
+          firestoreCards = await _firebaseService.getTopicCardsFromFirestore(dbTopicId);
         }
         if (firestoreCards != null && firestoreCards.isNotEmpty) {
           rawPairs = firestoreCards;
           developer.log("Successfully loaded predefined topic cards from Firestore!");
         } else {
-          rawPairs = _localDataService.getMockData(topic);
+          rawPairs = _localDataService.getMockData(dbTopicId);
           developer.log("Firestore cards not found or offline. Loaded local mock data.");
         }
       } else {

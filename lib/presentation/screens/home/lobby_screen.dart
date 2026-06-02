@@ -55,7 +55,12 @@ class _LobbyScreenState extends State<LobbyScreen> {
     
     // Offline mode or failed to fetch -> fallback to local predefined topics
     if (loadedTopics.isEmpty) {
-      loadedTopics = LocalDataService().getPredefinedTopics();
+      loadedTopics = LocalDataService().getPredefinedTopics().map((topic) {
+        return {
+          'id': topic['title'] as String,
+          ...topic,
+        };
+      }).toList();
     }
     
     if (mounted) {
@@ -146,7 +151,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                                     description: description,
                                     icon: icon,
                                     color: color,
-                                    onTap: () => _startGame(context, title, settings, isPredefined: true),
+                                    onTap: () => _startGame(context, topic['id'] as String, title, settings, isPredefined: true),
                                   );
                                 },
                               ),
@@ -208,7 +213,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                                     );
                                     return;
                                   }
-                                  _startGame(context, topic, settings);
+                                  _startGame(context, topic, topic, settings);
                                 },
                               ),
                             ],
@@ -486,11 +491,18 @@ class _LobbyScreenState extends State<LobbyScreen> {
     );
   }
 
-  Future<void> _startGame(BuildContext context, String topic, SettingsProvider settings, {bool isPredefined = false}) async {
+  Future<void> _startGame(
+    BuildContext context, 
+    String topicId, 
+    String topicTitle, 
+    SettingsProvider settings, 
+    {bool isPredefined = false}
+  ) async {
     final gameProvider = Provider.of<GameProvider>(context, listen: false);
     
     await gameProvider.startNewGame(
-      topic: topic,
+      topic: topicTitle,
+      topicId: topicId,
       apiKey: settings.aiProvider == "gemini" ? settings.geminiApiKey : settings.deepSeekApiKey,
       aiProvider: settings.aiProvider,
       isOffline: settings.isOfflineMode || isPredefined,
