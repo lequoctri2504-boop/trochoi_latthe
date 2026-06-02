@@ -11,6 +11,7 @@ import '../settings/settings_screen.dart';
 import '../auth/login_screen.dart';
 import '../../widgets/custom_button.dart';
 import '../../../core/services/local_data_service.dart';
+import '../../../core/services/firebase_service.dart';
 
 class LobbyScreen extends StatefulWidget {
   const LobbyScreen({super.key});
@@ -21,6 +22,49 @@ class LobbyScreen extends StatefulWidget {
 
 class _LobbyScreenState extends State<LobbyScreen> {
   final TextEditingController _customTopicController = TextEditingController();
+  List<Map<String, dynamic>> _topics = [];
+  bool _isLoadingTopics = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Load dynamic topics asynchronously
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTopics();
+    });
+  }
+
+  Future<void> _loadTopics() async {
+    if (!mounted) return;
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    final firebaseService = FirebaseService();
+    
+    List<Map<String, dynamic>> loadedTopics = [];
+    
+    // Only attempt Firestore dynamic load if online mode is enabled and Firebase is available
+    if (!settings.isOfflineMode && firebaseService.isAvailable) {
+      try {
+        final firestoreTopics = await firebaseService.getTopicsFromFirestore();
+        if (firestoreTopics.isNotEmpty) {
+          loadedTopics = firestoreTopics;
+        }
+      } catch (e) {
+        // Safe fallback in catch block
+      }
+    }
+    
+    // Offline mode or failed to fetch -> fallback to local predefined topics
+    if (loadedTopics.isEmpty) {
+      loadedTopics = LocalDataService().getPredefinedTopics();
+    }
+    
+    if (mounted) {
+      setState(() {
+        _topics = loadedTopics;
+        _isLoadingTopics = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -70,32 +114,42 @@ class _LobbyScreenState extends State<LobbyScreen> {
                         ),
                         const SizedBox(height: 12),
                         
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 0.85,
-                          ),
-                          itemCount: LocalDataService().getPredefinedTopics().length,
-                          itemBuilder: (context, index) {
-                            final topic = LocalDataService().getPredefinedTopics()[index];
-                            final title = topic['title'] as String;
-                            final description = topic['description'] as String;
-                            final icon = _getIconData(topic['icon'] as String);
-                            final color = _getColor(topic['color'] as String);
-                            
-                            return _buildTopicCard(
-                              title: title,
-                              description: description,
-                              icon: icon,
-                              color: color,
-                              onTap: () => _startGame(context, title, settings, isPredefined: true),
-                            );
-                          },
-                        ),
+                        _isLoadingTopics
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 32.0),
+                                  child: SpinKitFadingCircle(
+                                    color: AppColors.secondary,
+                                    size: 40.0,
+                                  ),
+                                ),
+                              )
+                            : GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                  childAspectRatio: 0.85,
+                                ),
+                                itemCount: _topics.length,
+                                itemBuilder: (context, index) {
+                                  final topic = _topics[index];
+                                  final title = topic['title'] as String;
+                                  final description = topic['description'] as String;
+                                  final icon = _getIconData(topic['icon'] as String);
+                                  final color = _getColor(topic['color'] as String);
+                                  
+                                  return _buildTopicCard(
+                                    title: title,
+                                    description: description,
+                                    icon: icon,
+                                    color: color,
+                                    onTap: () => _startGame(context, title, settings, isPredefined: true),
+                                  );
+                                },
+                              ),
                         const SizedBox(height: 32),
 
                         // Section 2: AI Custom Topic

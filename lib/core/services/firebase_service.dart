@@ -109,6 +109,26 @@ class FirebaseService {
     return null;
   }
 
+  // Get all topics metadata from Firestore (NoSQL online topic list)
+  Future<List<Map<String, dynamic>>> getTopicsFromFirestore() async {
+    if (!_isAvailable) return [];
+    try {
+      final snapshot = await _firestore!.collection('topics').get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'title': data['title'] ?? doc.id,
+          'icon': data['icon'] ?? 'help_outline_rounded',
+          'color': data['color'] ?? 'primary',
+          'description': data['description'] ?? '',
+        };
+      }).toList();
+    } catch (e) {
+      developer.log("Error getting topics from Firestore: $e");
+      return [];
+    }
+  }
+
   // Auto sync predefined topics with their mock cards from LocalDataService to Firestore topics collection
   Future<void> _syncPredefinedTopicsIfNeeded() async {
     try {
